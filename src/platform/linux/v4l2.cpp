@@ -66,7 +66,7 @@ namespace v4l2 {
 
       // V4L2 owns its output buffers instead of using an FFmpeg hardware frames context.
       // Retain this device for V4L2 conversion and submission.
-      hardware = true;
+      owns_conversion_buffers = true;
 
       current_output_frame_idx = -1;
 
@@ -276,7 +276,7 @@ namespace v4l2 {
 
       std::array<egl::surface_descriptor_t, 2> sds;
       for (auto &sd : sds) {
-        std::fill_n(sd.fds.begin(), 4, -1);
+        std::fill_n(sd.fds, 4, -1);
       }
       switch (pixel_format) {
         case V4L2_PIX_FMT_NV12:

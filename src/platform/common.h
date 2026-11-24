@@ -587,6 +587,7 @@ namespace platf {
    */
   struct avcodec_encode_device_t: encode_device_t {
     void *data {};  ///< Backend-specific conversion state.
+    bool owns_conversion_buffers = false;  ///< Backend supplies its own conversion buffers without an FFmpeg hardware device.
     AVFrame *frame {};  ///< FFmpeg frame currently owned by the encode device.
 
     /**

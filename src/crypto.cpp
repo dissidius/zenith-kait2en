@@ -418,7 +418,11 @@ namespace crypto {
 
     return {
       reinterpret_cast<const char *>(ASN1_STRING_get0_data(asn1)),
+#if defined(OPENSSL_VERSION_MAJOR) && (OPENSSL_VERSION_MAJOR > 4 || (OPENSSL_VERSION_MAJOR == 4 && OPENSSL_VERSION_MINOR >= 1))
+      static_cast<std::size_t>(ASN1_STRING_get_length(asn1))
+#else
       static_cast<std::size_t>(ASN1_STRING_length(asn1))
+#endif
     };
   }
 

@@ -2392,7 +2392,7 @@ namespace video {
 
     std::unique_ptr<platf::avcodec_encode_device_t> encode_device_final;
 
-    if (!encode_device->data) {
+    if (!encode_device->data && !encode_device->owns_conversion_buffers) {
       auto software_encode_device = std::make_unique<avcodec_software_encode_device_t>();
 
       if (software_encode_device->init(width, height, frame.get(), sw_fmt, hardware)) {
