@@ -1473,6 +1473,38 @@ editing the `conf` file in a text editor. Use the examples as reference.
     </tr>
 </table>
 
+### max_fps_target
+
+<table>
+    <tr>
+        <td>Description</td>
+        <td colspan="2">
+            Caps the streaming frame rate requested by Moonlight. A lower cap can improve frame pacing when the requested stream frame rate is not a whole multiple of the client display's refresh rate. This setting does not limit the game's rendering frame rate.
+        </td>
+    </tr>
+    <tr>
+        <td>Default</td>
+        <td colspan="2">@code{}
+            0
+            @endcode</td>
+    </tr>
+    <tr>
+        <td rowspan="2">Choices</td>
+        <td>0</td>
+        <td>No cap; honour the client's requested streaming frame rate.</td>
+    </tr>
+    <tr>
+        <td>1-1000</td>
+        <td>Maximum streaming frame rate in FPS. Use whole numbers.</td>
+    </tr>
+    <tr>
+        <td>Example</td>
+        <td colspan="2">@code{}
+            max_fps_target = 60
+            @endcode</td>
+    </tr>
+</table>
+
 ## Network
 
 ### upnp
