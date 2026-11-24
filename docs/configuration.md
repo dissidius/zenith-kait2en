@@ -2297,7 +2297,7 @@ editing the `conf` file in a text editor. Use the examples as reference.
             @endcode</td>
     </tr>
     <tr>
-        <td rowspan="5">Choices</td>
+        <td rowspan="7">Choices</td>
         <td>nvenc</td>
         <td>For NVIDIA graphics cards</td>
     </tr>
@@ -2316,6 +2316,11 @@ editing the `conf` file in a text editor. Use the examples as reference.
     <tr>
         <td>vulkan</td>
         <td>Use Vulkan encoder (AMD, Intel, NVIDIA).
+            @note{Applies to Linux only.}</td>
+    </tr>
+    <tr>
+        <td>v4l2m2m</td>
+        <td>Use V4L2 encoder.
             @note{Applies to Linux only.}</td>
     </tr>
     <tr>
