@@ -1110,7 +1110,16 @@ namespace nvhttp {
       // Once a VDD exists, validate the actual new capture target as well.
       bool vdd_ready = false;
 #ifdef __linux__
-      vdd_ready = !display_device::map_output_name("").empty();
+      vdd_ready = proc::proc.uses_zenith_vdd();
+      if (vdd_ready && config::video.encoder == "v4l2m2m" &&
+          display_device::map_output_name("").empty()) {
+        BOOST_LOG(error) << "Virtual display preparation did not yield a connected DRM capture target; restoring the desktop"sv;
+        proc::proc.terminate();
+        tree.put("root.<xmlattr>.status_code", 503);
+        tree.put("root.<xmlattr>.status_message", "Virtual display is unavailable");
+        tree.put("root.gamesession", 0);
+        return;
+      }
 #endif
       if (vdd_ready || video::probe_missed_display()) {
         BOOST_LOG(info) << "Re-probing encoders after display preparation"sv;
