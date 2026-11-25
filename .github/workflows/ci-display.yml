@@ -9,6 +9,7 @@ on:
   push:
     branches:
       - master
+      - feature/t2-sidecar
     paths:
       - "tools/display/**"
       - ".github/workflows/ci-display.yml"
