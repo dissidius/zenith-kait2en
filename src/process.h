@@ -151,6 +151,9 @@ namespace proc {
      */
     void terminate();
 
+    // True only for the built-in Linux virtual-display prep commands.
+    bool uses_zenith_vdd() const;
+
   private:
     int _app_id;
 
