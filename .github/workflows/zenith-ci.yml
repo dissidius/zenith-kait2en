@@ -17,7 +17,7 @@ name: Zenith CI
 
 on:
   push:
-    branches: [master]
+    branches: [master, feature/t2-sidecar]
     tags: ["v*"]
     paths-ignore:
       - "docs/**"
@@ -86,6 +86,13 @@ jobs:
             package: Zenith.rpm
             artifact: zenith-fedora-44-x86_64.rpm
             cuda_flag: "--cuda-runfile"
+          - name: Fedora 45 (rpm, x86_64 / T2)
+            runner: ubuntu-latest
+            container: fedora:45
+            sudo_flag: "--sudo-off"
+            package: Zenith.rpm
+            artifact: zenith-fedora-45-x86_64-t2.rpm
+            cuda_flag: "--skip-cuda"
           - name: Fedora 44 (rpm, aarch64 / Asahi)
             runner: ubuntu-24.04-arm
             container: fedora:44
@@ -148,6 +155,14 @@ jobs:
             exit 1
           fi
           echo "ok: CUDA is compiled into ${{ matrix.artifact }}"
+
+      - name: Verify T2 V4L2 encoder is compiled in
+        if: matrix.artifact == 'zenith-fedora-45-x86_64-t2.rpm'
+        shell: bash
+        run: |
+          test -f ./build/zenith
+          grep -qaF "h264_v4l2m2m" ./build/zenith
+          grep -qaF "V4L2: using independent EGL render device for KMS capture" ./build/zenith
 
       - name: Collect package
         shell: bash
