@@ -1924,6 +1924,12 @@ namespace platf {
 
 #ifdef SUNSHINE_BUILD_V4L2
         if (mem_type == mem_type_e::v4l2) {
+          // The capture card need not provide a render node (e.g. t2bdrm).
+          // Honor the configured conversion GPU independently of the KMS source.
+          if (!config::video.adapter_name.empty() || drmGetNodeTypeFromFd(card.render_fd.el) != DRM_NODE_RENDER) {
+            BOOST_LOG(info) << "V4L2: using independent EGL render device for KMS capture"sv;
+            return v4l2::make_avcodec_encode_device(width, height, img_offset_x, img_offset_y, true);
+          }
           return v4l2::make_avcodec_encode_device(width, height, dup(card.render_fd.el), img_offset_x, img_offset_y, true);
         }
 #endif
