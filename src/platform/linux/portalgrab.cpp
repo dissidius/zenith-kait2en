@@ -7,6 +7,8 @@
 
 // local includes
 #include "pipewire.cpp"
+#include "src/display_device.h"
+#include "src/utility.h"
 
 namespace {
   // Portal configuration constants
@@ -771,6 +773,11 @@ namespace portal {
         return -1;
       }
 
+      // The VDD prep command records the live connector. Do not use a saved
+      // portal selection for another monitor when a virtual display is active.
+      const auto vdd = display_device::map_output_name("");
+      const auto &target = vdd.empty() ? display_name : vdd;
+
       // Match display_name to a stream from the pipewire_streams vector
       bool use_fallback = true;
       pipewire_streaminfo_t stream;
@@ -780,13 +787,18 @@ namespace portal {
         return -1;
       }
       for (auto &stream_ : streams) {
-        if (stream_.match_display_name(display_name)) {
+        if (stream_.match_display_name(target)) {
           stream = stream_;
           use_fallback = false;
           break;
         }
       }
       // Fall back to first stream if we cannot match the given display_name to a stream in currently available streams.
+      if (use_fallback && !vdd.empty()) {
+        BOOST_LOG(error) << "[portalgrab] Virtual display "sv << vdd
+                         << " is not in the authorized portal streams; refusing to capture another monitor"sv;
+        return -1;
+      }
       if (use_fallback) {
         BOOST_LOG(info) << "[portalgrab] Using first available stream as no matching stream was found for: '"sv << display_name << "'";
         stream = dbus.pipewire_streams.at(0);
