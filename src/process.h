@@ -151,7 +151,10 @@ namespace proc {
      */
     void terminate();
 
-    // True only for the built-in Linux virtual-display prep commands.
+    /**
+     * @brief Check whether the current app uses built-in Linux VDD preparation.
+     * @return True if the active app uses a recognized virtual-display prep command.
+     */
     bool uses_zenith_vdd() const;
 
   private:
