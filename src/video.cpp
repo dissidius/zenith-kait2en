@@ -1528,6 +1528,16 @@ namespace video {
   void refresh_displays(platf::mem_type_e dev_type, std::vector<std::string> &display_names, int &current_display_index) {
     // It is possible that the output name may be empty even if it wasn't before (device disconnected) or vice-versa
     const auto output_name {display_device::map_output_name(config::video.output_name)};
+#ifdef __linux__
+    // A session-scoped virtual target takes precedence over a stale physical
+    // display index or a partial portal enumeration. Let the selected backend
+    // fail explicitly if it cannot open that target, instead of mirroring.
+    if (const auto vdd = display_device::map_output_name(""); !vdd.empty()) {
+      display_names = {vdd};
+      current_display_index = 0;
+      return;
+    }
+#endif
     std::string current_display_name;
 
     // If we have a current display index, let's start with that
