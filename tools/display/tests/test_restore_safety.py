@@ -7,6 +7,7 @@ literally is a black screen with no way back.
 """
 
 import json
+from types import SimpleNamespace
 
 import pytest
 from conftest import FakeRunner
@@ -72,3 +73,28 @@ def test_restore_still_honours_a_dark_panel_when_the_monitor_is_there(fixture_te
     assert "output.HDMI-A-1.enable" in applied
     assert "output.eDP-1.disable" in applied  # the user's choice, respected
     assert "output.DP-1.disable" in applied   # and the VDD goes away
+
+
+def test_recover_does_not_touch_desktop_without_zenith_state(monkeypatch):
+    def unexpected_restore(_args):
+        pytest.fail("recovery must not alter an ordinary desktop")
+
+    monkeypatch.setattr(cli, "cmd_restore", unexpected_restore)
+    assert cli.cmd_recover(SimpleNamespace(dry_run=False)) == cli.EXIT_OK
+
+
+def test_recover_runs_restore_for_tracked_virtual_display(monkeypatch):
+    cli.snapshot.track_vdd("DP-1")
+
+    def restore(_args):
+        cli.snapshot.untrack_vdd("DP-1")
+        return cli.EXIT_OK
+
+    monkeypatch.setattr(cli, "cmd_restore", restore)
+    assert cli.cmd_recover(SimpleNamespace(dry_run=False)) == cli.EXIT_OK
+
+
+def test_recover_reports_unfinished_restore(monkeypatch):
+    cli.snapshot.track_vdd("DP-1")
+    monkeypatch.setattr(cli, "cmd_restore", lambda _args: cli.EXIT_OK)
+    assert cli.cmd_recover(SimpleNamespace(dry_run=False)) == cli.EXIT_APPLY_FAILED
