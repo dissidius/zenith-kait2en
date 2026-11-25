@@ -23,3 +23,46 @@ Linux builds with `SUNSHINE_ENABLE_V4L2=ON` select the source fork's pinned Liza
 This is an experimental source port, not a verified headless/T2 combination. Actual hardware tests and build/CI validation are required. The T2 encoder alone does not create a virtual display or remove GNOME session/portal constraints.
 
 Reference: https://kait2en.org/documentation.html
+
+
+## KAIT2EN capture and recovery test build
+
+The initial hardware test confirmed Intel UHD 630 EGL conversion plus T2
+H.264 encoding using Portal capture. Disabling the system tray avoided
+the observed launch hang. The tested working configuration was:
+
+```ini
+capture = portal
+encoder = v4l2m2m
+adapter_name = /dev/dri/by-path/pci-0000:00:02.0-render
+hevc_mode = 1
+av1_mode = 1
+system_tray = disabled
+```
+
+Verify that this PCI path resolves to the Intel render node on your host.
+The next experimental KMS test changes only `capture = kms`; test the
+ordinary desktop first, then Extend, then Headless. Keep a local console or
+SSH recovery route available. Portal capture cannot automatically authorize
+a new virtual monitor; the new strict target checks reject a mismatched
+portal stream rather than silently mirroring the physical display.
+
+The VDD launch path now validates capture after preparation and attempts
+desktop restoration on launch timeout, last-client disconnect, and native
+service stop/restart. A failed or interrupted VDD session must be launched
+again instead of resumed. The native service also attempts to recover saved
+Zenith display state after an abnormal exit. These changes still require
+hardware validation and are not a guarantee against a kernel/compositor hang.
+
+Emergency recovery from a GNOME terminal: `zenith-display restore`.
+From a logged-in text console on GNOME/Wayland:
+
+```sh
+systemctl --user stop app-io.github.jacksonpate.Zenith.service
+XDG_SESSION_TYPE=wayland XDG_CURRENT_DESKTOP=GNOME WAYLAND_DISPLAY=wayland-0 zenith-display --verbose restore
+sudo chvt 2
+```
+
+Use the actual graphical VT if different. Do not use headless again until
+normal KMS capture and Extend have been verified. IDR request timing and
+sustained frame pacing remain open issues.
