@@ -131,6 +131,8 @@ jobs:
       - name: Build
         shell: bash
         run: |
+          # The workspace is runner-owned in container jobs; trust this checkout only.
+          git config --global --add safe.directory "$(pwd)"
           chmod +x ./scripts/linux_build.sh
           ./scripts/linux_build.sh \
             ${{ matrix.sudo_flag }} \
