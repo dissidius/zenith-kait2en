@@ -38,6 +38,7 @@ import shutil
 from typing import List, Optional, Tuple
 
 from .. import edid as edid_mod
+from ..detect import drm_connector_name
 from ..modes import Mode
 from ..runner import Runner
 from ..snapshot import state_dir
@@ -120,7 +121,10 @@ class DrmDebugfsProvider(VddProvider):
         spares.sort(key=lambda c: (
             affinity(c),  # the encoder's own GPU, above all else
             0 if id(c) in reclaimable else 1,  # reclaim ours before taking a new port
-            0 if c.name.startswith("DP") else 1,  # DP tolerates forced EDIDs best
+            # A forced Intel DP port can be limited to one RBR lane.
+            # Prefer HDMI on Intel; retain the original ordering elsewhere.
+            (0 if c.name.startswith("HDMI-A-") else 1)
+            if c.driver in ("i915", "xe") else (0 if c.name.startswith("DP") else 1),
             c.name,
         ))
         return spares[0] if spares else None
@@ -212,4 +216,4 @@ class DrmDebugfsProvider(VddProvider):
         output = state.get("vdd_output")
         if not output:
             return
-        self._run(env, runner, ["off", output])
+        self._run(env, runner, ["off", drm_connector_name(output)])

@@ -26,6 +26,7 @@ from dataclasses import dataclass, field, replace
 from typing import Iterable, List, Optional
 
 from ..modes import Mode
+from ..detect import connector_aliases
 from ..runner import Runner
 
 log = logging.getLogger("zenith-display")
@@ -220,8 +221,13 @@ class LayoutBackend:
         """
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
-            for out in self.outputs():
-                if out.name == name_hint or out.name.startswith(name_hint):
+            outputs = self.outputs()
+            aliases = connector_aliases(name_hint)
+            for out in outputs:
+                if out.name == name_hint:
+                    return out.name
+            for out in outputs:
+                if out.name in aliases or (len(aliases) == 1 and out.name.startswith(name_hint)):
                     return out.name
             if self.runner.dry_run:
                 return name_hint

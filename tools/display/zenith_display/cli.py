@@ -226,6 +226,19 @@ def _apply(kind: str, args) -> int:
         # remembered desktop that has to survive the session, not the darkness.
         snapshot.save(backend.name, baseline, provider=provider.name, vdd_output=vdd)
     try:
+        if not args.dry_run and args.strict and provider.name == "drm-debugfs" and backend.name == "gnome":
+            # Never blank the physical panel for a tiny fallback mode.
+            import time
+            geometry = f"{mode.width}x{mode.height}"
+            deadline = time.monotonic() + 2.0
+            while True:
+                out = next((o for o in backend.outputs() if o.name == vdd), None)
+                if out and any(m.split("@", 1)[0] == geometry for m in out.modes):
+                    break
+                if time.monotonic() >= deadline:
+                    raise RuntimeError(f"{vdd} does not expose requested geometry {geometry}; "
+                                       f"available modes: {out.modes if out else []}")
+                time.sleep(0.2)
         if kind == "headless":
             # Only the VDD is lit, so where it sits means nothing — but the zoom
             # the user chose for it means everything, and left alone the compositor
@@ -275,7 +288,7 @@ def _known_vdds(env, runner: Runner, provider, stale: Optional[dict]) -> set:
     names |= {c.name for c in env.vdd_connectors}
     if stale and stale.get("vdd_output"):
         names.add(stale["vdd_output"])
-    return names
+    return {alias for name in names for alias in detect_mod.connector_aliases(name)}
 
 
 def _destroy_orphans(env, runner: Runner, provider, vdds: set, backend) -> None:

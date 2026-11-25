@@ -72,6 +72,12 @@ namespace display_device {
         return {};
       }
       const std::string name {match[1].str()};
+      // Mutter calls HDMI-A-N HDMI-N. Capture understands the compositor
+      // name, but sysfs uses the kernel spelling.
+      const auto drm_name = name.starts_with("HDMI-") &&
+        name.size() > 5 && name.find_first_not_of("0123456789", 5) == std::string::npos
+        ? "HDMI-A-" + name.substr(5)
+        : name;
 
       // Only if the display is really there. A snapshot outlives a session that
       // crashed, and aiming capture at a display that no longer exists is worse
@@ -80,7 +86,7 @@ namespace display_device {
       std::error_code ec;
       for (const auto &entry : fs::directory_iterator {"/sys/class/drm", ec}) {
         const auto connector {entry.path().filename().string()};  // e.g. card1-DVI-I-1
-        if (!connector.ends_with("-" + name)) {
+        if (!connector.ends_with("-" + drm_name)) {
           continue;
         }
         std::ifstream status_file {entry.path() / "status"};

@@ -198,6 +198,21 @@ def encoder_card(connectors: List[Connector], nv_version: Optional[str] = None) 
     return ""
 
 
+def drm_connector_name(name: str) -> str:
+    """Translate Mutter's HDMI-N alias to the DRM sysfs HDMI-A-N spelling."""
+    if name.startswith("HDMI-") and name[5:].isdigit():
+        return "HDMI-A-" + name[5:]
+    return name
+
+
+def connector_aliases(name: str) -> set:
+    """Both spellings of one HDMI type-A connector, not a prefix match."""
+    canonical = drm_connector_name(name)
+    if canonical.startswith("HDMI-A-") and canonical[7:].isdigit():
+        return {canonical, "HDMI-" + canonical[7:]}
+    return {name}
+
+
 def wait_connector_enabled(name: str, timeout: float = 5.0, settle: float = 0.5) -> bool:
     """Block until the DRM connector's CRTC actually lights (scanout committed).
 
@@ -210,7 +225,7 @@ def wait_connector_enabled(name: str, timeout: float = 5.0, settle: float = 0.5)
     """
     import time as _time
 
-    paths = glob.glob(f"/sys/class/drm/card*-{name}/enabled")
+    paths = glob.glob(f"/sys/class/drm/card*-{drm_connector_name(name)}/enabled")
     if not paths:
         return False
     deadline = _time.monotonic() + timeout
