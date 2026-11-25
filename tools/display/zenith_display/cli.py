@@ -27,6 +27,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
 from typing import Optional
 
@@ -409,6 +410,18 @@ def _restore_from(doc: dict, env, runner: Runner) -> None:
         snapshot.clear()
 
 
+def cmd_recover(args) -> int:
+    """Only recover layouts that Zenith recorded; never touch an ordinary desk."""
+    path = os.path.join(snapshot.state_dir(), "snapshot.json")
+    if not os.path.exists(path) and not snapshot.tracked_vdds():
+        return EXIT_OK
+    result = cmd_restore(args)
+    if not args.dry_run and (os.path.exists(path) or snapshot.tracked_vdds()):
+        log.warning("virtual-display recovery is incomplete; run zenith-display --verbose restore")
+        return EXIT_APPLY_FAILED
+    return result
+
+
 def cmd_restore(args) -> int:
     doc = snapshot.load()  # discards a poisoned snapshot rather than replaying it
     runner = Runner(dry_run=args.dry_run)
@@ -654,7 +667,7 @@ def main(argv=None) -> int:
     parser.add_argument("--yes", "-y", action="store_true",
                         help="apply fixes without asking (for scripts and package hooks)")
     sub = parser.add_subparsers(dest="command", required=True)
-    for name in ("probe", "plan", "headless", "dual", "restore", "remember", "forget",
+    for name in ("probe", "plan", "headless", "dual", "restore", "recover", "remember", "forget",
                  "setup", "doctor", "fix"):
         sub.add_parser(name)
     args = parser.parse_args(argv)
@@ -671,6 +684,7 @@ def main(argv=None) -> int:
         "headless": lambda a: _apply("headless", a),
         "dual": lambda a: _apply("dual", a),
         "restore": cmd_restore,
+        "recover": cmd_recover,
         "remember": cmd_remember,
         "forget": cmd_forget,
         "setup": cmd_setup,
