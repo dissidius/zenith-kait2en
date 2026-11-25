@@ -28,6 +28,7 @@ extern "C" {
 #include "input.h"
 #include "logging.h"
 #include "network.h"
+#include "process.h"
 #include "rtsp.h"
 #include "stream.h"
 #include "sync.h"
@@ -608,6 +609,11 @@ namespace rtsp_stream {
           auto discarded = launch_event.pop(0s);
           if (discarded) {
             BOOST_LOG(debug) << "Event timeout: "sv << discarded->unique_id;
+            if (session_count() == 0 && proc::proc.uses_zenith_vdd() &&
+                proc::proc.running() == discarded->appid) {
+              BOOST_LOG(warning) << "Virtual-display launch timed out; restoring desktop"sv;
+              proc::proc.terminate();
+            }
           }
         }
       });
