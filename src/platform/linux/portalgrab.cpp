@@ -113,10 +113,10 @@ namespace portal {
    * @brief DBus response loop and response variant for portal calls.
    */
   struct dbus_response_t {
-    GMainLoop *loop = nullptr;
-    GVariant *response = nullptr;
-    GDBusConnection *connection = nullptr;
-    guint subscription_id = 0;
+    GMainLoop *loop = nullptr;  ///< Private request event loop.
+    GVariant *response = nullptr;  ///< Owned response variant.
+    GDBusConnection *connection = nullptr;  ///< Borrowed connection for unsubscribe.
+    guint subscription_id = 0;  ///< Active response subscription.
 
     ~dbus_response_t() {
       if (subscription_id) {
