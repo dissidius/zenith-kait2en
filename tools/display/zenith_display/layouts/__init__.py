@@ -25,8 +25,8 @@ import time
 from dataclasses import dataclass, field, replace
 from typing import Iterable, List, Optional
 
-from ..modes import Mode
 from ..detect import connector_aliases
+from ..modes import Mode
 from ..runner import Runner
 
 log = logging.getLogger("zenith-display")
