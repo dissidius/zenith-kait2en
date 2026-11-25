@@ -1106,10 +1106,16 @@ namespace nvhttp {
       // ask again. Only when the first probe actually came up empty: a host with
       // a monitor attached has already answered the question, and re-probing it
       // would cost a second of capture setup for nothing.
-      if (video::probe_missed_display()) {
-        BOOST_LOG(info) << "No display existed when encoders were probed; re-probing now that the app's display is up"sv;
+      // A successful pre-prep probe may have captured the physical panel.
+      // Once a VDD exists, validate the actual new capture target as well.
+      bool vdd_ready = false;
+#ifdef __linux__
+      vdd_ready = !display_device::map_output_name("").empty();
+#endif
+      if (vdd_ready || video::probe_missed_display()) {
+        BOOST_LOG(info) << "Re-probing encoders after display preparation"sv;
         if (video::probe_encoders()) {
-          if (probe_found_nothing) {
+          if (probe_found_nothing || vdd_ready) {
             // The first probe had no encoder to fall back on, and the display
             // the prep command was supposed to bring up did not answer either.
             // Now there is genuinely nothing to stream, and the app we started
