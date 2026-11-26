@@ -15,12 +15,14 @@ concurrency:
 
 jobs:
   github-env:
+    if: github.ref != 'refs/heads/feature/t2-sidecar' && github.head_ref != 'feature/t2-sidecar'
     name: GitHub Env Debug
     permissions:
       contents: read
     uses: LizardByte/.github/.github/workflows/__call-github-env.yml@master
 
   release-setup:
+    if: github.ref != 'refs/heads/feature/t2-sidecar' && github.head_ref != 'feature/t2-sidecar'
     name: Release Setup
     outputs:
       publish_release: ${{ steps.release-setup.outputs.publish_release }}

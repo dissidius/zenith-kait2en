@@ -15,6 +15,7 @@ concurrency:
 
 jobs:
   prep:
+    if: github.ref != 'refs/heads/feature/t2-sidecar' && github.head_ref != 'feature/t2-sidecar'
     runs-on: ubuntu-latest
     permissions:
       contents: read
