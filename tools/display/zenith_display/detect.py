@@ -198,6 +198,41 @@ def encoder_card(connectors: List[Connector], nv_version: Optional[str] = None) 
     return ""
 
 
+def configured_v4l2_card(connectors: List[Connector], environ=os.environ,
+                         drm_root: str = "/sys/class/drm") -> str:
+    """For V4L2/T2, use the explicitly configured EGL render device.
+
+    T2 itself is not a DRM GPU. Card numbering is not stable across boots,
+    so compare the render node's device path to each connector's parent GPU.
+    Leave the original heuristic intact for other encoders or absent settings.
+    """
+    config_root = environ.get("XDG_CONFIG_HOME") or os.path.join(
+        environ.get("HOME") or os.path.expanduser("~"), ".config")
+    config = _read(os.path.join(config_root, "sunshine", "zenith.conf"))
+    settings = {}
+    for line in config.splitlines():
+        key, sep, value = line.partition("=")
+        if sep:
+            settings[key.strip()] = value.split("#", 1)[0].strip().strip('"')
+    if settings.get("encoder") != "v4l2m2m":
+        return ""
+    adapter = settings.get("adapter_name", "")
+    if not adapter or not adapter.startswith("/dev/dri/"):
+        return ""
+    node = os.path.basename(os.path.realpath(adapter))
+    device = os.path.join(drm_root, node, "device")
+    if not os.path.exists(device):
+        return ""
+    target = os.path.realpath(device)
+    for connector in connectors:
+        if not connector.card:
+            continue
+        parent = os.path.join(drm_root, connector.card, "device")
+        if os.path.exists(parent) and os.path.realpath(parent) == target:
+            return connector.card
+    return ""
+
+
 def drm_connector_name(name: str) -> str:
     """Translate Mutter's HDMI-N alias to the DRM sysfs HDMI-A-N spelling."""
     if name.startswith("HDMI-") and name[5:].isdigit():
@@ -254,7 +289,7 @@ def detect(environ=os.environ, runner: Optional[Runner] = None) -> Environment:
         connectors=scan_connectors(),
         is_root=hasattr(os, "geteuid") and os.geteuid() == 0,
     )
-    env.encoder_card = encoder_card(env.connectors)
+    env.encoder_card = configured_v4l2_card(env.connectors, environ) or encoder_card(env.connectors)
     if not env.is_root and which("sudo"):
         env.has_passwordless_sudo = runner.query(["sudo", "-n", "true"], timeout=5).ok
     return env
