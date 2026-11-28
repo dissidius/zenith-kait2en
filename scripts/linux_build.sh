@@ -480,6 +480,12 @@ function add_fedora_deps() {
     "xorg-x11-server-Xvfb"  # necessary for headless unit testing
   )
 
+  if [[ "$version" == "45" ]]; then
+    # New setuptools releases removed pkg_resources; GLAD uses uv to
+    # provision its isolated environment with setuptools<81 when necessary.
+    dependencies+=("uv")
+  fi
+
   if [[ "$skip_libva" == 0 ]]; then
     dependencies+=(
       "libva-devel"  # VA-API

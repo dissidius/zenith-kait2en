@@ -2405,6 +2405,13 @@ namespace stream {
       // If this is the last session, invoke the platform callbacks
       if (--running_sessions == 0) {
         bool revert_display_config {config::video.dd.config_revert_on_disconnect};
+        // VDD sessions must not leave the physical displays disabled when the
+        // last client disconnects (including an early video initialization
+        // failure). Require a fresh app launch for the next VDD session.
+        if (proc::proc.uses_zenith_vdd()) {
+          BOOST_LOG(info) << "Last virtual-display stream ended; restoring desktop"sv;
+          proc::proc.terminate();
+        }
         if (proc::proc.running()) {
 #if defined SUNSHINE_TRAY && SUNSHINE_TRAY >= 1
           system_tray::update_tray_pausing(proc::proc.get_last_run_app_name());

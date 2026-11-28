@@ -190,3 +190,32 @@ def _root_env():
                               status="disconnected", enabled=False, monitor=None,
                               is_vdd=False, driver="nvidia")],
         is_root=True, has_passwordless_sudo=True)
+
+
+
+def test_intel_prefers_hdmi_to_untrained_dp(helper):
+    env = _env(connectors=[_spare("DP-1", driver="i915"),
+                           _spare("HDMI-A-1", driver="i915")], encoder_card="card1")
+    assert DrmDebugfsProvider()._pick_connector(env).name == "HDMI-A-1"
+
+
+def test_non_intel_keeps_dp_preference(helper):
+    env = _env(connectors=[_spare("HDMI-A-1"), _spare("DP-1")], encoder_card="card1")
+    assert DrmDebugfsProvider()._pick_connector(env).name == "DP-1"
+
+
+def test_hdmi_alias_uses_kernel_name_for_teardown(helper):
+    runner = FakeRunner()
+    DrmDebugfsProvider().destroy(_env(connectors=[_spare("HDMI-A-1", driver="i915")]),
+                                 runner, {"vdd_output": "HDMI-1"})
+    assert runner.trace[-1][3:5] == ["off", "HDMI-A-1"]
+
+
+def test_hdmi_alias_matches_mutter_output():
+    from zenith_display.layouts import LayoutBackend, OutputState
+
+    class FakeLayout(LayoutBackend):
+        def outputs(self):
+            return [OutputState("HDMI-10", True), OutputState("HDMI-1", True)]
+
+    assert FakeLayout(FakeRunner()).wait_for_output("HDMI-A-1") == "HDMI-1"

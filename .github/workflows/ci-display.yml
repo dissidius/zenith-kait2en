@@ -9,6 +9,7 @@ on:
   push:
     branches:
       - master
+      - feature/t2-sidecar
     paths:
       - "tools/display/**"
       - ".github/workflows/ci-display.yml"
@@ -20,7 +21,7 @@ concurrency:
 jobs:
   unit:
     name: Lint + Unit Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4

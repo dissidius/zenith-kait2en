@@ -771,6 +771,7 @@ namespace config {
     .ds5_inputtino_randomize_mac = true,
 
     .keyboard = true,
+    .keyboard_text_layout = "unicode",
     .key_rightalt_to_key_win = false,
     .mouse = true,
     .controller = true,
@@ -1709,6 +1710,7 @@ namespace config {
 
     bool_f(vars, "mouse", input.mouse);
     bool_f(vars, "keyboard", input.keyboard);
+    string_restricted_f(vars, "keyboard_text_layout", input.keyboard_text_layout, {"unicode"sv, "us"sv, "it"sv});
     bool_f(vars, "controller", input.controller);
 
     bool_f(vars, "always_send_scancodes", input.always_send_scancodes);

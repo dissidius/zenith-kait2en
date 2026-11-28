@@ -166,6 +166,18 @@ namespace proc {
 
     _app_id = app_id;
     _app = *iter;
+#ifdef __linux__
+    // Existing installations keep their apps.json across updates. Apply strict
+    // behavior at execution time too, rather than silently mirroring the desk
+    // when the built-in VDD preparation failed.
+    for (auto &cmd : _app.prep_cmds) {
+      if (cmd.do_cmd == "zenith-display headless") {
+        cmd.do_cmd = "zenith-display --strict headless";
+      } else if (cmd.do_cmd == "zenith-display dual") {
+        cmd.do_cmd = "zenith-display --strict dual";
+      }
+    }
+#endif
     _app_prep_begin = std::begin(_app.prep_cmds);
     _app_prep_it = _app_prep_begin;
 
@@ -319,6 +331,19 @@ namespace proc {
     }
 
     return 0;
+  }
+
+  bool proc_t::uses_zenith_vdd() const {
+#ifdef __linux__
+    return _app_id > 0 && std::any_of(_app.prep_cmds.begin(), _app.prep_cmds.end(), [](const auto &cmd) {
+      return cmd.do_cmd == "zenith-display --strict headless" ||
+             cmd.do_cmd == "zenith-display --strict dual" ||
+             cmd.do_cmd == "zenith-display headless" ||
+             cmd.do_cmd == "zenith-display dual";
+    });
+#else
+    return false;
+#endif
   }
 
   void proc_t::terminate() {

@@ -12,6 +12,7 @@ from zenith_display.detect import (
     VENDOR_INTEL,
     VENDOR_NVIDIA,
     Connector,
+    configured_v4l2_card,
     encoder_card,
 )
 
@@ -64,3 +65,30 @@ def test_nvidia_identified_by_vendor_id_not_only_driver_name():
     others; the PCI vendor id is the same either way."""
     connectors = [_c("DP-6", "card0", "nvidia", VENDOR_NVIDIA)]
     assert encoder_card(connectors, nv_version="580.65") == "card0"
+
+
+
+def test_v4l2_uses_configured_render_device_not_card_order(tmp_path):
+    config = tmp_path / "config" / "sunshine"
+    config.mkdir(parents=True)
+    (config / "zenith.conf").write_text(
+        "encoder = v4l2m2m\nadapter_name = /dev/dri/renderD128\n")
+    drm = tmp_path / "drm"
+    intel = tmp_path / "intel"
+    amd = tmp_path / "amd"
+    intel.mkdir()
+    amd.mkdir()
+    for node, device in (("card0", amd), ("card1", intel), ("renderD128", intel)):
+        (drm / node).mkdir(parents=True)
+        (drm / node / "device").symlink_to(device)
+    connectors = [_c("DP-4", "card0", "amdgpu", VENDOR_AMD),
+                  _c("HDMI-A-1", "card1", "i915", VENDOR_INTEL)]
+    assert configured_v4l2_card(connectors, {"XDG_CONFIG_HOME": str(config.parent)},
+                                str(drm)) == "card1"
+
+
+def test_v4l2_card_does_not_override_other_encoders(tmp_path):
+    config = tmp_path / "sunshine"
+    config.mkdir()
+    (config / "zenith.conf").write_text("encoder = vaapi\n")
+    assert configured_v4l2_card([], {"XDG_CONFIG_HOME": str(tmp_path)}) == ""

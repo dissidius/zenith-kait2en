@@ -28,6 +28,7 @@ extern "C" {
 #include "input.h"
 #include "logging.h"
 #include "network.h"
+#include "process.h"
 #include "rtsp.h"
 #include "stream.h"
 #include "sync.h"
@@ -608,6 +609,11 @@ namespace rtsp_stream {
           auto discarded = launch_event.pop(0s);
           if (discarded) {
             BOOST_LOG(debug) << "Event timeout: "sv << discarded->unique_id;
+            if (session_count() == 0 && proc::proc.uses_zenith_vdd() &&
+                proc::proc.running() == discarded->appid) {
+              BOOST_LOG(warning) << "Virtual-display launch timed out; restoring desktop"sv;
+              proc::proc.terminate();
+            }
           }
         }
       });
@@ -1366,7 +1372,7 @@ namespace rtsp_stream {
     respond(sock, session, &option, 200, "OK", req->sequenceNumber, {});
   }
 
-  void start() {
+  bool start() {
     platf::set_thread_name("rtsp");
     auto shutdown_event = mail::man->event<bool>(mail::shutdown);
 
@@ -1381,7 +1387,7 @@ namespace rtsp_stream {
       BOOST_LOG(fatal) << "Couldn't bind RTSP server to port ["sv << net::map_port(rtsp_stream::RTSP_SETUP_PORT) << "], " << ec.message();
       shutdown_event->raise(true);
 
-      return;
+      return false;
     }
 
     std::thread rtsp_thread {[&shutdown_event] {
@@ -1408,6 +1414,7 @@ namespace rtsp_stream {
     // Stop the server and join the server thread
     server.stop();
     rtsp_thread.join();
+    return true;
   }
 
   /**

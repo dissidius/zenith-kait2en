@@ -7,6 +7,8 @@
 
 // local includes
 #include "pipewire.cpp"
+#include "src/display_device.h"
+#include "src/utility.h"
 
 namespace {
   // Portal configuration constants
@@ -111,9 +113,19 @@ namespace portal {
    * @brief DBus response loop and response variant for portal calls.
    */
   struct dbus_response_t {
-    GMainLoop *loop;  ///< GLib main loop waiting for a portal response signal.
-    GVariant *response;  ///< DBus response payload returned by the portal.
-    guint subscription_id;  ///< Subscription ID.
+    GMainLoop *loop = nullptr;  ///< Private request event loop.
+    GVariant *response = nullptr;  ///< Owned response variant.
+    GDBusConnection *connection = nullptr;  ///< Borrowed connection for unsubscribe.
+    guint subscription_id = 0;  ///< Active response subscription.
+
+    ~dbus_response_t() {
+      if (subscription_id) {
+        g_dbus_connection_signal_unsubscribe(connection, subscription_id);
+      }
+      if (response) {
+        g_variant_unref(response);
+      }
+    }
   };
 
   /**
@@ -234,7 +246,13 @@ namespace portal {
      * @return 0 when a portal session is ready; nonzero when D-Bus or portal setup fails.
      */
     int connect_to_portal() {
-      g_autoptr(GMainLoop) loop = g_main_loop_new(nullptr, FALSE);
+      // A request must not compete with Qt's system tray or another portal call
+      // for the global default context. GDBus dispatches callbacks on the
+      // thread-default context captured at subscription time.
+      g_autoptr(GMainContext) context = g_main_context_new();
+      g_main_context_push_thread_default(context);
+      auto context_guard = util::fail_guard([&]() { g_main_context_pop_thread_default(context); });
+      g_autoptr(GMainLoop) loop = g_main_loop_new(context, FALSE);
       g_autofree gchar *session_path = nullptr;
       g_autofree gchar *session_token = nullptr;
       create_session_path(conn, nullptr, &session_token);
@@ -357,11 +375,13 @@ namespace portal {
       GDBusProxy *proxy = use_screencast ? screencast_proxy : remote_desktop_proxy;
       const char *session_type = use_screencast ? "ScreenCast" : "RemoteDesktop";
 
-      dbus_response_t response = {
-        nullptr,
-      };
+      dbus_response_t response;
       g_autofree gchar *request_token = nullptr;
-      create_request_path(conn, nullptr, &request_token);
+      g_autofree gchar *expected_path = nullptr;
+      create_request_path(conn, &expected_path, &request_token);
+      // Subscribe before sending the request: a fast portal may respond before
+      // the synchronous method call returns.
+      dbus_response_init(&response, loop, conn, expected_path);
 
       GVariantBuilder builder;
       g_variant_builder_init(&builder, G_VARIANT_TYPE("(a{sv})"));
@@ -380,7 +400,10 @@ namespace portal {
 
       const gchar *request_path = nullptr;
       g_variant_get(reply, "(o)", &request_path);
-      dbus_response_init(&response, loop, conn, request_path);
+      if (g_strcmp0(request_path, expected_path) != 0) {
+        BOOST_LOG(error) << "[portalgrab] Portal returned an unexpected request path"sv;
+        return -1;
+      }
 
       g_autoptr(GVariant) create_response = dbus_response_wait(&response);
 
@@ -420,11 +443,13 @@ namespace portal {
     }
 
     int select_remote_desktop_devices(GMainLoop *loop, const gchar *session_path) {
-      dbus_response_t response = {
-        nullptr,
-      };
+      dbus_response_t response;
       g_autofree gchar *request_token = nullptr;
-      create_request_path(conn, nullptr, &request_token);
+      g_autofree gchar *expected_path = nullptr;
+      create_request_path(conn, &expected_path, &request_token);
+      // Subscribe before sending the request: a fast portal may respond before
+      // the synchronous method call returns.
+      dbus_response_init(&response, loop, conn, expected_path);
 
       GVariantBuilder builder;
       g_variant_builder_init(&builder, G_VARIANT_TYPE("(oa{sv})"));
@@ -448,7 +473,10 @@ namespace portal {
 
       const gchar *request_path = nullptr;
       g_variant_get(reply, "(o)", &request_path);
-      dbus_response_init(&response, loop, conn, request_path);
+      if (g_strcmp0(request_path, expected_path) != 0) {
+        BOOST_LOG(error) << "[portalgrab] Portal returned an unexpected request path"sv;
+        return -1;
+      }
 
       g_autoptr(GVariant) devices_response = dbus_response_wait(&response);
 
@@ -470,11 +498,13 @@ namespace portal {
     }
 
     int select_screencast_sources(GMainLoop *loop, const gchar *session_path, bool persist) {
-      dbus_response_t response = {
-        nullptr,
-      };
+      dbus_response_t response;
       g_autofree gchar *request_token = nullptr;
-      create_request_path(conn, nullptr, &request_token);
+      g_autofree gchar *expected_path = nullptr;
+      create_request_path(conn, &expected_path, &request_token);
+      // Subscribe before sending the request: a fast portal may respond before
+      // the synchronous method call returns.
+      dbus_response_init(&response, loop, conn, expected_path);
 
       GVariantBuilder builder;
       g_variant_builder_init(&builder, G_VARIANT_TYPE("(oa{sv})"));
@@ -501,7 +531,10 @@ namespace portal {
 
       const gchar *request_path = nullptr;
       g_variant_get(reply, "(o)", &request_path);
-      dbus_response_init(&response, loop, conn, request_path);
+      if (g_strcmp0(request_path, expected_path) != 0) {
+        BOOST_LOG(error) << "[portalgrab] Portal returned an unexpected request path"sv;
+        return -1;
+      }
 
       g_autoptr(GVariant) sources_response = dbus_response_wait(&response);
 
@@ -526,11 +559,13 @@ namespace portal {
       GDBusProxy *proxy = use_screencast ? screencast_proxy : remote_desktop_proxy;
       const char *session_type = use_screencast ? "ScreenCast" : "RemoteDesktop";
 
-      dbus_response_t response = {
-        nullptr,
-      };
+      dbus_response_t response;
       g_autofree gchar *request_token = nullptr;
-      create_request_path(conn, nullptr, &request_token);
+      g_autofree gchar *expected_path = nullptr;
+      create_request_path(conn, &expected_path, &request_token);
+      // Subscribe before sending the request: a fast portal may respond before
+      // the synchronous method call returns.
+      dbus_response_init(&response, loop, conn, expected_path);
 
       GVariantBuilder builder;
       g_variant_builder_init(&builder, G_VARIANT_TYPE("(osa{sv})"));
@@ -549,7 +584,10 @@ namespace portal {
 
       const gchar *request_path = nullptr;
       g_variant_get(reply, "(o)", &request_path);
-      dbus_response_init(&response, loop, conn, request_path);
+      if (g_strcmp0(request_path, expected_path) != 0) {
+        BOOST_LOG(error) << "[portalgrab] Portal returned an unexpected request path"sv;
+        return -1;
+      }
 
       g_autoptr(GVariant) start_response = dbus_response_wait(&response);
 
@@ -652,7 +690,10 @@ namespace portal {
 
     static void on_response_received_cb([[maybe_unused]] GDBusConnection *connection, [[maybe_unused]] const gchar *sender_name, [[maybe_unused]] const gchar *object_path, [[maybe_unused]] const gchar *interface_name, [[maybe_unused]] const gchar *signal_name, GVariant *parameters, gpointer user_data) {
       auto *response = static_cast<dbus_response_t *>(user_data);
-      response->response = g_variant_ref_sink(parameters);
+      if (response->response) {
+        return;
+      }
+      response->response = g_variant_ref(parameters);
       g_main_loop_quit(response->loop);
     }
 
@@ -666,9 +707,8 @@ namespace portal {
     }
 
     static void create_request_path(GDBusConnection *conn, gchar **out_path, gchar **out_token) {
-      static uint32_t request_count = 0;
-
-      request_count++;
+      static std::atomic<uint32_t> request_counter {0};
+      const auto request_count = ++request_counter;
 
       if (out_token) {
         *out_token = g_strdup_printf("Sunshine%u", request_count);
@@ -680,9 +720,8 @@ namespace portal {
     }
 
     static void create_session_path(GDBusConnection *conn, gchar **out_path, gchar **out_token) {
-      static uint32_t session_count = 0;
-
-      session_count++;
+      static std::atomic<uint32_t> session_counter {0};
+      const auto session_count = ++session_counter;
 
       if (out_token) {
         *out_token = g_strdup_printf("Sunshine%u", session_count);
@@ -696,12 +735,25 @@ namespace portal {
 
     static void dbus_response_init(struct dbus_response_t *response, GMainLoop *loop, GDBusConnection *conn, const char *request_path) {
       response->loop = loop;
+      response->connection = conn;
       response->subscription_id = g_dbus_connection_signal_subscribe(conn, PORTAL_NAME, REQUEST_IFACE, "Response", request_path, nullptr, G_DBUS_SIGNAL_FLAGS_NONE, on_response_received_cb, response, nullptr);
     }
 
     static GVariant *dbus_response_wait(struct dbus_response_t *response) {
-      g_main_loop_run(response->loop);
-      return response->response;
+      if (!response->response) {
+        // Allow time for interactive consent, but never leave /launch blocked
+        // indefinitely if the portal fails to emit its response.
+        auto *timeout = g_timeout_source_new_seconds(60);
+        g_source_set_callback(timeout, [](gpointer data) -> gboolean {
+          g_main_loop_quit(static_cast<GMainLoop *>(data));
+          return G_SOURCE_REMOVE;
+        }, response->loop, nullptr);
+        g_source_attach(timeout, g_main_loop_get_context(response->loop));
+        g_main_loop_run(response->loop);
+        g_source_destroy(timeout);
+        g_source_unref(timeout);
+      }
+      return response->response ? g_variant_ref(response->response) : nullptr;
     }
   };
 
@@ -721,6 +773,11 @@ namespace portal {
         return -1;
       }
 
+      // The VDD prep command records the live connector. Do not use a saved
+      // portal selection for another monitor when a virtual display is active.
+      const auto vdd = display_device::map_output_name("");
+      const auto &target = vdd.empty() ? display_name : vdd;
+
       // Match display_name to a stream from the pipewire_streams vector
       bool use_fallback = true;
       pipewire_streaminfo_t stream;
@@ -730,13 +787,18 @@ namespace portal {
         return -1;
       }
       for (auto &stream_ : streams) {
-        if (stream_.match_display_name(display_name)) {
+        if (stream_.match_display_name(target)) {
           stream = stream_;
           use_fallback = false;
           break;
         }
       }
       // Fall back to first stream if we cannot match the given display_name to a stream in currently available streams.
+      if (use_fallback && !vdd.empty()) {
+        BOOST_LOG(error) << "[portalgrab] Virtual display "sv << vdd
+                         << " is not in the authorized portal streams; refusing to capture another monitor"sv;
+        return -1;
+      }
       if (use_fallback) {
         BOOST_LOG(info) << "[portalgrab] Using first available stream as no matching stream was found for: '"sv << display_name << "'";
         stream = dbus.pipewire_streams.at(0);

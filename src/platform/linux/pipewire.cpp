@@ -20,6 +20,7 @@
 #include "src/main.h"
 #include "src/platform/common.h"
 #include "src/video.h"
+#include "v4l2.h"
 #include "vaapi.h"
 #include "vulkan_encode.h"
 #include "wayland.h"
@@ -309,11 +310,12 @@ namespace pipewire {
         std::array<const struct spa_pod *, MAX_PARAMS> params;
 
         // Add preferred parameters for DMA-BUF with modifiers
-        // Use DMA-BUF for VAAPI, or for CUDA when the display GPU is NVIDIA (pure NVIDIA system).
+        // Use DMA-BUF for VAAPI, VULKAN, V4L2, or for CUDA when the display GPU is NVIDIA (pure NVIDIA system).
         // On hybrid GPU systems (Intel+NVIDIA), DMA-BUFs come from the Intel GPU and cannot
         // be imported into CUDA, so we fall back to memory buffers in that case.
         bool use_dmabuf = n_dmabuf_infos > 0 && (mem_type == platf::mem_type_e::vaapi ||
                                                  mem_type == platf::mem_type_e::vulkan ||
+                                                 mem_type == platf::mem_type_e::v4l2 ||
                                                  (mem_type == platf::mem_type_e::cuda && display_is_nvidia));
         stream_data.dmabuf_offered = use_dmabuf;
         if (use_dmabuf) {
@@ -752,6 +754,7 @@ namespace pipewire {
         case vaapi:
         case cuda:
         case vulkan:
+        case v4l2:
           return true;
         default:
           return false;
@@ -1066,6 +1069,12 @@ namespace pipewire {
           // DMA-BUFs from Intel GPU cannot be imported into CUDA
           return cuda::make_avcodec_encode_device(width, height, false);
         }
+      }
+#endif
+
+#ifdef SUNSHINE_BUILD_V4L2
+      if (mem_type == platf::mem_type_e::v4l2) {
+        return v4l2::make_avcodec_encode_device(width, height, n_dmabuf_infos > 0);
       }
 #endif
 

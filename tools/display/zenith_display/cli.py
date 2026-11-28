@@ -27,6 +27,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
 from typing import Optional
 
@@ -225,6 +226,19 @@ def _apply(kind: str, args) -> int:
         # remembered desktop that has to survive the session, not the darkness.
         snapshot.save(backend.name, baseline, provider=provider.name, vdd_output=vdd)
     try:
+        if not args.dry_run and args.strict and provider.name == "drm-debugfs" and backend.name == "gnome":
+            # Never blank the physical panel for a tiny fallback mode.
+            import time
+            geometry = f"{mode.width}x{mode.height}"
+            deadline = time.monotonic() + 2.0
+            while True:
+                out = next((o for o in backend.outputs() if o.name == vdd), None)
+                if out and any(m.split("@", 1)[0] == geometry for m in out.modes):
+                    break
+                if time.monotonic() >= deadline:
+                    raise RuntimeError(f"{vdd} does not expose requested geometry {geometry}; "
+                                       f"available modes: {out.modes if out else []}")
+                time.sleep(0.2)
         if kind == "headless":
             # Only the VDD is lit, so where it sits means nothing — but the zoom
             # the user chose for it means everything, and left alone the compositor
@@ -274,7 +288,7 @@ def _known_vdds(env, runner: Runner, provider, stale: Optional[dict]) -> set:
     names |= {c.name for c in env.vdd_connectors}
     if stale and stale.get("vdd_output"):
         names.add(stale["vdd_output"])
-    return names
+    return {alias for name in names for alias in detect_mod.connector_aliases(name)}
 
 
 def _destroy_orphans(env, runner: Runner, provider, vdds: set, backend) -> None:
@@ -407,6 +421,18 @@ def _restore_from(doc: dict, env, runner: Runner) -> None:
 
     if not runner.dry_run:
         snapshot.clear()
+
+
+def cmd_recover(args) -> int:
+    """Only recover layouts that Zenith recorded; never touch an ordinary desk."""
+    path = os.path.join(snapshot.state_dir(), "snapshot.json")
+    if not os.path.exists(path) and not snapshot.tracked_vdds():
+        return EXIT_OK
+    result = cmd_restore(args)
+    if not args.dry_run and (os.path.exists(path) or snapshot.tracked_vdds()):
+        log.warning("virtual-display recovery is incomplete; run zenith-display --verbose restore")
+        return EXIT_APPLY_FAILED
+    return result
 
 
 def cmd_restore(args) -> int:
@@ -654,7 +680,7 @@ def main(argv=None) -> int:
     parser.add_argument("--yes", "-y", action="store_true",
                         help="apply fixes without asking (for scripts and package hooks)")
     sub = parser.add_subparsers(dest="command", required=True)
-    for name in ("probe", "plan", "headless", "dual", "restore", "remember", "forget",
+    for name in ("probe", "plan", "headless", "dual", "restore", "recover", "remember", "forget",
                  "setup", "doctor", "fix"):
         sub.add_parser(name)
     args = parser.parse_args(argv)
@@ -671,6 +697,7 @@ def main(argv=None) -> int:
         "headless": lambda a: _apply("headless", a),
         "dual": lambda a: _apply("dual", a),
         "restore": cmd_restore,
+        "recover": cmd_recover,
         "remember": cmd_remember,
         "forget": cmd_forget,
         "setup": cmd_setup,

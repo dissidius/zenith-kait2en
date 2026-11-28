@@ -17,7 +17,7 @@ name: Zenith CI
 
 on:
   push:
-    branches: [master]
+    branches: [master, feature/t2-sidecar]
     tags: ["v*"]
     paths-ignore:
       - "docs/**"
@@ -34,6 +34,7 @@ permissions:
 
 jobs:
   build-windows:
+    if: github.ref != 'refs/heads/feature/t2-sidecar' && github.head_ref != 'feature/t2-sidecar'
     name: Windows
     permissions:
       contents: read
@@ -50,49 +51,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - name: Ubuntu 24.04 (deb, x86_64)
-            runner: ubuntu-24.04
-            container: ""
-            sudo_flag: ""
-            package: Zenith.deb
-            artifact: zenith-ubuntu-24.04-amd64.deb
-            cuda_flag: "--cuda-runfile"
-          - name: Debian 13 trixie (deb, x86_64)
-            runner: ubuntu-latest
-            container: debian:13
-            sudo_flag: "--sudo-off"
-            package: Zenith.deb
-            artifact: zenith-debian-13-amd64.deb
-            cuda_flag: "--cuda-runfile"
-          - name: Fedora 42 (rpm, x86_64)
-            runner: ubuntu-latest
-            container: fedora:42
-            sudo_flag: "--sudo-off"
-            package: Zenith.rpm
-            artifact: zenith-fedora-42-x86_64.rpm
-            cuda_flag: "--cuda-runfile"
-          - name: Fedora 42 (rpm, aarch64 / Asahi)
-            runner: ubuntu-24.04-arm
-            container: fedora:42
-            sudo_flag: "--sudo-off"
-            package: Zenith.rpm
-            artifact: zenith-fedora-42-aarch64.rpm
-            cuda_flag: "--skip-cuda"
-          - name: Fedora 44 (rpm, x86_64)
-            runner: ubuntu-latest
-            container: fedora:44
-            sudo_flag: "--sudo-off"
-            package: Zenith.rpm
-            artifact: zenith-fedora-44-x86_64.rpm
-            cuda_flag: "--cuda-runfile"
-          - name: Fedora 44 (rpm, aarch64 / Asahi)
-            runner: ubuntu-24.04-arm
-            container: fedora:44
-            sudo_flag: "--sudo-off"
-            package: Zenith.rpm
-            artifact: zenith-fedora-44-aarch64.rpm
-            cuda_flag: "--skip-cuda"
+        # Temporary T2 development fast path. Other branches retain the full matrix.
+        include: >-
+          ${{ fromJSON((github.ref == 'refs/heads/feature/t2-sidecar' || github.head_ref == 'feature/t2-sidecar') &&
+            '[{"name":"Fedora 45 (rpm, x86_64 / T2)","runner":"ubuntu-latest","container":"fedora:45","sudo_flag":"--sudo-off","package":"Zenith.rpm","artifact":"zenith-fedora-45-x86_64-t2.rpm","cuda_flag":"--skip-cuda"}]' ||
+            '[
+            {"name":"Ubuntu 24.04 (deb, x86_64)","runner":"ubuntu-24.04","container":"","sudo_flag":"","package":"Zenith.deb","artifact":"zenith-ubuntu-24.04-amd64.deb","cuda_flag":"--cuda-runfile"},
+            {"name":"Debian 13 trixie (deb, x86_64)","runner":"ubuntu-latest","container":"debian:13","sudo_flag":"--sudo-off","package":"Zenith.deb","artifact":"zenith-debian-13-amd64.deb","cuda_flag":"--cuda-runfile"},
+            {"name":"Fedora 42 (rpm, x86_64)","runner":"ubuntu-latest","container":"fedora:42","sudo_flag":"--sudo-off","package":"Zenith.rpm","artifact":"zenith-fedora-42-x86_64.rpm","cuda_flag":"--cuda-runfile"},
+            {"name":"Fedora 42 (rpm, aarch64 / Asahi)","runner":"ubuntu-24.04-arm","container":"fedora:42","sudo_flag":"--sudo-off","package":"Zenith.rpm","artifact":"zenith-fedora-42-aarch64.rpm","cuda_flag":"--skip-cuda"},
+            {"name":"Fedora 44 (rpm, x86_64)","runner":"ubuntu-latest","container":"fedora:44","sudo_flag":"--sudo-off","package":"Zenith.rpm","artifact":"zenith-fedora-44-x86_64.rpm","cuda_flag":"--cuda-runfile"},
+            {"name":"Fedora 45 (rpm, x86_64 / T2)","runner":"ubuntu-latest","container":"fedora:45","sudo_flag":"--sudo-off","package":"Zenith.rpm","artifact":"zenith-fedora-45-x86_64-t2.rpm","cuda_flag":"--skip-cuda"},
+            {"name":"Fedora 44 (rpm, aarch64 / Asahi)","runner":"ubuntu-24.04-arm","container":"fedora:44","sudo_flag":"--sudo-off","package":"Zenith.rpm","artifact":"zenith-fedora-44-aarch64.rpm","cuda_flag":"--skip-cuda"}
+            ]') }}
     steps:
       - name: Install git (container jobs)
         if: matrix.container != ''
@@ -124,6 +95,8 @@ jobs:
       - name: Build
         shell: bash
         run: |
+          # The workspace is runner-owned in container jobs; trust this checkout only.
+          git config --global --add safe.directory "$(pwd)"
           chmod +x ./scripts/linux_build.sh
           ./scripts/linux_build.sh \
             ${{ matrix.sudo_flag }} \
@@ -148,6 +121,14 @@ jobs:
             exit 1
           fi
           echo "ok: CUDA is compiled into ${{ matrix.artifact }}"
+
+      - name: Verify T2 V4L2 encoder is compiled in
+        if: matrix.artifact == 'zenith-fedora-45-x86_64-t2.rpm'
+        shell: bash
+        run: |
+          test -f ./build/zenith
+          grep -qaF "h264_v4l2m2m" ./build/zenith
+          grep -qaF "V4L2: using independent EGL render device for KMS capture" ./build/zenith
 
       - name: Collect package
         shell: bash

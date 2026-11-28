@@ -10,6 +10,7 @@
 #include "src/logging.h"
 #include "src/platform/common.h"
 #include "src/video.h"
+#include "v4l2.h"
 #include "vaapi.h"
 #include "wayland.h"
 
@@ -334,6 +335,12 @@ namespace wl {
       }
 #endif
 
+#ifdef SUNSHINE_BUILD_V4L2
+      if (mem_type == platf::mem_type_e::v4l2) {
+        return v4l2::make_avcodec_encode_device(width, height, false);
+      }
+#endif
+
       return std::make_unique<platf::avcodec_encode_device_t>();
     }
 
@@ -481,6 +488,12 @@ namespace wl {
       }
 #endif
 
+#ifdef SUNSHINE_BUILD_V4L2
+      if (mem_type == platf::mem_type_e::v4l2) {
+        return v4l2::make_avcodec_encode_device(width, height, 0, 0, true);
+      }
+#endif
+
       return std::make_unique<platf::avcodec_encode_device_t>();
     }
 
@@ -505,12 +518,12 @@ namespace platf {
    * @brief Create a Wayland capture backend for the requested memory type.
    */
   std::shared_ptr<display_t> wl_display(mem_type_e hwdevice_type, const std::string &display_name, const video::config_t &config) {
-    if (hwdevice_type != platf::mem_type_e::system && hwdevice_type != platf::mem_type_e::vaapi && hwdevice_type != platf::mem_type_e::cuda) {
+    if (hwdevice_type != platf::mem_type_e::system && hwdevice_type != platf::mem_type_e::vaapi && hwdevice_type != platf::mem_type_e::cuda && hwdevice_type != platf::mem_type_e::v4l2) {
       BOOST_LOG(error) << "[wlgrab] Could not initialize display with the given hw device type."sv;
       return nullptr;
     }
 
-    if (hwdevice_type == platf::mem_type_e::vaapi || hwdevice_type == platf::mem_type_e::cuda) {
+    if (hwdevice_type == platf::mem_type_e::vaapi || hwdevice_type == platf::mem_type_e::cuda || hwdevice_type == platf::mem_type_e::v4l2) {
       auto wlr = std::make_shared<wl::wlr_vram_t>();
       if (wlr->init(hwdevice_type, display_name, config)) {
         return nullptr;

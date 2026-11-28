@@ -560,6 +560,18 @@ editing the `conf` file in a text editor. Use the examples as reference.
     </tr>
 </table>
 
+### keyboard_text_layout
+
+**Description:** Linux UTF-8 text input mode. Set to `us` or `it` for direct key presses matching the active standard US or Italian keyboard layout. In direct-key mode, characters outside the mapping are skipped; use the host keyboard for them. The default `unicode` uses application-dependent Ctrl+Shift+U composition. This option does not automatically track host layout switches and does not alter ordinary key packets. Direct typing assumes Caps Lock and modifiers are in their normal state.
+
+**Default:** `unicode`
+
+**Example:**
+
+```ini
+keyboard_text_layout = us
+```
+
 ### always_send_scancodes
 
 <table>
@@ -1473,6 +1485,38 @@ editing the `conf` file in a text editor. Use the examples as reference.
     </tr>
 </table>
 
+### max_fps_target
+
+<table>
+    <tr>
+        <td>Description</td>
+        <td colspan="2">
+            Caps the streaming frame rate requested by Moonlight. A lower cap can improve frame pacing when the requested stream frame rate is not a whole multiple of the client display's refresh rate. This setting does not limit the game's rendering frame rate.
+        </td>
+    </tr>
+    <tr>
+        <td>Default</td>
+        <td colspan="2">@code{}
+            0
+            @endcode</td>
+    </tr>
+    <tr>
+        <td rowspan="2">Choices</td>
+        <td>0</td>
+        <td>No cap; honour the client's requested streaming frame rate.</td>
+    </tr>
+    <tr>
+        <td>1-1000</td>
+        <td>Maximum streaming frame rate in FPS. Use whole numbers.</td>
+    </tr>
+    <tr>
+        <td>Example</td>
+        <td colspan="2">@code{}
+            max_fps_target = 60
+            @endcode</td>
+    </tr>
+</table>
+
 ## Network
 
 ### upnp
@@ -2297,7 +2341,7 @@ editing the `conf` file in a text editor. Use the examples as reference.
             @endcode</td>
     </tr>
     <tr>
-        <td rowspan="5">Choices</td>
+        <td rowspan="7">Choices</td>
         <td>nvenc</td>
         <td>For NVIDIA graphics cards</td>
     </tr>
@@ -2316,6 +2360,11 @@ editing the `conf` file in a text editor. Use the examples as reference.
     <tr>
         <td>vulkan</td>
         <td>Use Vulkan encoder (AMD, Intel, NVIDIA).
+            @note{Applies to Linux only.}</td>
+    </tr>
+    <tr>
+        <td>v4l2m2m</td>
+        <td>Use V4L2 encoder.
             @note{Applies to Linux only.}</td>
     </tr>
     <tr>

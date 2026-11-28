@@ -275,7 +275,7 @@ namespace input {
     constexpr auto VK_F1 = 0x70;
     constexpr auto VK_F13 = 0x7C;
 
-    BOOST_LOG(debug) << "Apply Shortcut: 0x"sv << util::hex((std::uint8_t) keyCode).to_string_view();
+    BOOST_LOG(debug) << "Apply keyboard shortcut"sv;
 
     if (keyCode >= VK_F1 && keyCode <= VK_F13) {
       mail::man->event<int>(mail::switch_display)->raise(keyCode - VK_F1);
@@ -362,13 +362,8 @@ namespace input {
    * @param packet Protocol packet being processed.
    */
   void print(PNV_KEYBOARD_PACKET packet) {
-    BOOST_LOG(debug)
-      << "--begin keyboard packet--"sv << std::endl
-      << "keyAction ["sv << util::hex(packet->header.magic).to_string_view() << ']' << std::endl
-      << "keyCode ["sv << util::hex(packet->keyCode).to_string_view() << ']' << std::endl
-      << "modifiers ["sv << util::hex(packet->modifiers).to_string_view() << ']' << std::endl
-      << "flags ["sv << util::hex(packet->flags).to_string_view() << ']' << std::endl
-      << "--end keyboard packet--"sv;
+    (void) packet;
+    // Keyboard payloads can contain passwords; never log them.
   }
 
   /**
@@ -377,11 +372,8 @@ namespace input {
    * @param packet Protocol packet being processed.
    */
   void print(PNV_UNICODE_PACKET packet) {
-    std::string text(packet->text, util::endian::big(packet->header.size) - sizeof(packet->header.magic));
-    BOOST_LOG(debug)
-      << "--begin unicode packet--"sv << std::endl
-      << "text ["sv << text << ']' << std::endl
-      << "--end unicode packet--"sv;
+    (void) packet;
+    // Keyboard payloads can contain passwords; never log them.
   }
 
   /**

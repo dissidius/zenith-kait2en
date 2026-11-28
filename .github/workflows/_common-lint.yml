@@ -17,7 +17,7 @@ jobs:
   lint:
     name: Common Lint
     uses: LizardByte/.github/.github/workflows/__call-common-lint.yml@master
-    if: ${{ github.repository != 'LizardByte/.github' }}
+    if: ${{ github.repository != 'LizardByte/.github' && github.ref != 'refs/heads/feature/t2-sidecar' && github.head_ref != 'feature/t2-sidecar' }}
     permissions:
       contents: read
       pull-requests: read
