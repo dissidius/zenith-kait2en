@@ -75,6 +75,13 @@ namespace platf::keyboard {
         }
         continue;
       }
+      // A direct-key layout is also suitable for authentication fields.
+      // Do not fall back to a composition shortcut there: an unsupported
+      // application could interpret its final Enter as form submission.
+      if (config::input.keyboard_text_layout != "unicode") {
+        BOOST_LOG(debug) << "Text character unavailable in configured direct-key layout"sv;
+        continue;
+      }
       // Application-dependent composition, one code point at a time.
       char hex[8];
       auto result = std::to_chars(hex, hex + sizeof(hex), static_cast<std::uint32_t>(cp), 16);

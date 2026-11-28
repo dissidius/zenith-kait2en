@@ -560,6 +560,18 @@ editing the `conf` file in a text editor. Use the examples as reference.
     </tr>
 </table>
 
+### keyboard_text_layout
+
+**Description:** Linux UTF-8 text input mode. Set to `us` or `it` for direct key presses matching the active standard US or Italian keyboard layout. In direct-key mode, characters outside the mapping are skipped; use the host keyboard for them. The default `unicode` uses application-dependent Ctrl+Shift+U composition. This option does not automatically track host layout switches and does not alter ordinary key packets. Direct typing assumes Caps Lock and modifiers are in their normal state.
+
+**Default:** `unicode`
+
+**Example:**
+
+```ini
+keyboard_text_layout = us
+```
+
 ### always_send_scancodes
 
 <table>
