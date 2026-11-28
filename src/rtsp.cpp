@@ -1372,7 +1372,7 @@ namespace rtsp_stream {
     respond(sock, session, &option, 200, "OK", req->sequenceNumber, {});
   }
 
-  void start() {
+  bool start() {
     platf::set_thread_name("rtsp");
     auto shutdown_event = mail::man->event<bool>(mail::shutdown);
 
@@ -1387,7 +1387,7 @@ namespace rtsp_stream {
       BOOST_LOG(fatal) << "Couldn't bind RTSP server to port ["sv << net::map_port(rtsp_stream::RTSP_SETUP_PORT) << "], " << ec.message();
       shutdown_event->raise(true);
 
-      return;
+      return false;
     }
 
     std::thread rtsp_thread {[&shutdown_event] {
@@ -1414,6 +1414,7 @@ namespace rtsp_stream {
     // Stop the server and join the server thread
     server.stop();
     rtsp_thread.join();
+    return true;
   }
 
   /**

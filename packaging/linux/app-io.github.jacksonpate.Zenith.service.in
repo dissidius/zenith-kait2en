@@ -2,6 +2,9 @@
 Description=@PROJECT_DESCRIPTION@
 StartLimitIntervalSec=500
 StartLimitBurst=5
+# Do not launch a second instance in the system greeter session.
+ConditionUser=!@system
+ConditionUser=!gdm
 After=graphical-session.target xdg-desktop-autostart.target xdg-desktop-portal.service
 
 [Service]

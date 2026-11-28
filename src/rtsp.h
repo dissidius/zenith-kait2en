@@ -77,6 +77,7 @@ namespace rtsp_stream {
 
   /**
    * @brief Runs the RTSP server loop.
+   * @return True after normal shutdown, false on bind failure.
    */
-  void start();
+  bool start();
 }  // namespace rtsp_stream

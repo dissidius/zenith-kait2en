@@ -440,7 +440,10 @@ int main(int argc, char *argv[]) {
 
   std::thread httpThread {nvhttp::start};
   std::thread configThread {confighttp::start};
-  std::thread rtspThread {rtsp_stream::start};
+  bool rtsp_ok = false;
+  std::thread rtspThread {[&rtsp_ok]() {
+    rtsp_ok = rtsp_stream::start();
+  }};
 
 #ifdef _WIN32
   // If we're using the default port and GameStream is enabled, warn the user
@@ -481,5 +484,6 @@ int main(int argc, char *argv[]) {
   }
 #endif
 
-  return lifetime::desired_exit_code;
+  // The RTSP thread has been joined, so its result is safe to read.
+  return rtsp_ok ? lifetime::desired_exit_code : 1;
 }

@@ -280,6 +280,7 @@ namespace config {
     bool ds5_inputtino_randomize_mac;  ///< Randomize the inputtino DualSense MAC address.
 
     bool keyboard;  ///< Enable keyboard input from clients.
+    std::string keyboard_text_layout;  ///< Explicit Linux text layout: unicode, us or it.
     bool key_rightalt_to_key_win;  ///< Map the client Right Alt key to the Windows key.
     bool mouse;  ///< Enable mouse input from clients.
     bool controller;  ///< Enable controller input from clients.
